@@ -14,6 +14,8 @@ var app = {
         this.bindEvents();
         console.log("App: events bound, waiting for deviceready event");
     },
+    
+
 
     /**
      * Helper that loads the static data into a Backbone collection for the views to use
@@ -42,8 +44,22 @@ var app = {
         document.addEventListener('deviceready', this.onDeviceReady, false);
         document.addEventListener('pause', this.onPause, false);
         document.addEventListener('resume', this.onResume, false);
-    },
 
+        // Here I was tring to add two more event handlers for when the App is online or offline.
+        // Unfortunatly I could not get it to work, Still do not know why...
+        document.addEventListener('offline', this.OnceOffline, false);
+        document.addEventListener('online', this.OnceOnline, false);
+    },
+    
+    OnceOffline: function() {
+        console.log("Offline");
+        alert('You are now Offline')
+    },
+    
+    OnceOnline: function() {
+        console.log("Online");
+        alert('You are now Online')
+    },
     
     /**
      * deviceready Event Handler
@@ -51,13 +67,64 @@ var app = {
      * http://docs.phonegap.com/en/1.0.0/phonegap_events_events.md.html
      * (remember 'this' is the event, not the app object )
      */
+    
     onDeviceReady: function() {
+        // This function checks for network connection and alerts on connection state upon Device ready
+        function CheckNetwork() {
+            var networkState = navigator.network.connection.type;
+            var states = {};
+            states[Connection.UNKNOWN]  = 'Unknown connection';
+            states[Connection.ETHERNET] = 'Ethernet connection';
+            states[Connection.WIFI]     = 'WiFi connection';
+            states[Connection.CELL_2G]  = 'Cell 2G connection';
+            states[Connection.CELL_3G]  = 'Cell 3G connection';
+            states[Connection.CELL_4G]  = 'Cell 4G connection';
+            states[Connection.NONE]     = 'No network connection';
+            
+            if (networkState==Connection.NONE){
+                alert("Error: There is no network connection");
+            } else {
+                alert("Success: Your app is connected to the net");
+            }
+        }
+        
+        var onSuccess = function(position) {
+            alert('Latitude: '          + position.coords.latitude          + '\n' +
+                  'Longitude: '         + position.coords.longitude         + '\n' +
+                  'Altitude: '          + position.coords.altitude          + '\n' +
+                  'Accuracy: '          + position.coords.accuracy          + '\n' +
+                  'Altitude Accuracy: ' + position.coords.altitudeAccuracy  + '\n' +
+                  'Heading: '           + position.coords.heading           + '\n' +
+                  'Speed: '             + position.coords.speed             + '\n' +
+                  'Timestamp: '         + position.timestamp                + '\n');
+            
+            var geocoder = new google.maps.Geocoder();
+            var latlng = new google.maps.LatLng(position.coords.latitude, position.coords.longitude);
+            geocoder.geocode({'latLng': latlng}, function(results, status) {
+                             if (status == google.maps.GeocoderStatus.OK) {
+                             // Appearently google's reverse geolocation string does not necessarily have the same format for different locations. It can be a 0 to 8 array. Country is usually at location 7 but not all the time. So I tried to parse result 0 and take the last element, hope it works well...
+                                var geostring = results[0].formatted_address.split(',');
+                                alert("Based on your location we advise you scroll to: " + geostring[geostring.length -1]);
+                             } else {
+                                alert("We could not find your location. code: " + google.maps.GeocoderStatus);
+                             }
+                             });
+
+        };
+        
+        function onError(error) {
+            alert('code: '    + error.code    + '\n' +
+                  'message: ' + error.message + '\n');
+        }
+        
+        navigator.geolocation.getCurrentPosition(onSuccess, onError);
         app.loadData();
         console.log("App: created collection ("+app.countryCollection.length+")");
         app.router = new AppRouter();
         console.log("App: router created");
         Backbone.history.start();
         console.log("App: history started");
+        CheckNetwork();
     },
 
     /**
